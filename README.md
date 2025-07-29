@@ -91,8 +91,8 @@ print("✅ All modules imported successfully!")
 cd ~/ssafy_project/sensor_project
 python test_imports.py
 ```
-" ✅ All modules imported successfully!
-이 출력이 보이면 모든 의존성 설치가 완료된 것입니다.
+> ✅ All modules imported successfully!
+> 이 출력이 보이면 모든 의존성 설치가 완료된 것입니다.
 
 ---
 
