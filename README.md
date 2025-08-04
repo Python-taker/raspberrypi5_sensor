@@ -115,5 +115,115 @@ ssafy_project/
 
 ---
 
-### ✅ 다음 단계
-센서별 테스트 스크립트 또는 통합 센서 읽기 모듈을 작성하여 센서 데이터를 수집할 수 있습니다.
+### 🛠 /dev/serial0이 /dev/ttyAMA0이 아니고 /dev/ttyAMA10으로 설정되는 문제 해결
+라즈베리파이 5에서 UART를 사용할 때, /dev/serial0이 ttyAMA10으로 매핑되어 UART 통신이 정상적으로 동작하지 않는 경우가 있습니다. 이는 내부 udev 규칙에 의해 /dev/serial0 → ttyAMA10으로 자동 지정되는 문제이며, 아래 과정을 따라 해결할 수 있습니다.
+
+---
+
+#### ✅ 현재 상태 확인
+```bash
+ls -l /dev/serial*
+```
+출력 예시:
+```bash
+/dev/serial0 -> ttyAMA10
+```
+위와 같이 나온다면, 아래 과정을 따라 고정 설정합니다.
+
+---
+
+#### 🔧 1. /boot/firmware/config.txt 설정
+```bash
+sudo nano /boot/firmware/config.txt
+```
+아래 항목들을 [all] 블록에 반드시 포함시키세요:
+```ini
+enable_uart=1
+dtoverlay=disable-bt
+dtoverlay=uart0
+```
+
+---
+
+#### 🔧 2. /boot/firmware/cmdline.txt 확인
+```bash
+cat /boot/firmware/cmdline.txt
+```
+console=ttyAMA10 또는 serial0 관련 설정이 있다면 제거하거나 tty1만 남기세요:
+```txt
+console=tty1 ...
+```
+
+---
+
+#### 🔥 핵심 원인: udev rules에서 serial0 → ttyAMA10이 강제됨
+시스템 udev 규칙 중 일부는 내부적으로 /dev/serial0을 ttyAMA10 등으로 연결하려고 시도할 수 있습니다.
+
+해당 규칙 예시:
+```udev
+KERNEL=="ttyAMA[0-9]", KERNELS=="serial0", SYMLINK+="serial2"
+```
+
+---
+
+#### 🛠 해결 방법 (추천): 수동으로 serial0 → ttyAMA0 고정
+1. 아래 명령으로 udev 규칙 파일을 생성합니다:
+```bash
+sudo nano /etc/udev/rules.d/99-serial0-fix.rules
+```
+2. 다음 한 줄을 추가합니다:
+```udev
+KERNEL=="ttyAMA0", SYMLINK+="serial0"
+```
+3. 규칙 적용:
+```bash
+sudo udevadm control --reload-rules
+sudo udevadm trigger
+```
+또는 재부팅:
+```bash
+sudo reboot
+```
+4. 이후 다시 확인:
+```bash
+ls -l /dev/serial*
+```
+정상 출력:
+```bash
+/dev/serial0 -> ttyAMA0
+```
+
+---
+
+#### 🧪 UART 통신 테스트 (TX ↔ RX Loopback)
+1. GPIO 14 (TX, physical pin 8)과 GPIO 15 (RX, pin 10)을 점퍼 와이어로 직접 연결합니다.
+2. 다음 테스트 스크립트 실행:
+```python
+# uart_test.py
+import serial, time
+ser = serial.Serial("/dev/serial0", baudrate=115200, timeout=1)
+ser.write(b"Hello from Pi!\n")
+time.sleep(0.1)
+print("수신된 메시지:", ser.readline().decode(errors="ignore").strip())
+ser.close()
+```
+3. 출력 예시:
+```csharp
+수신된 메시지: Hello from Pi!
+```
+이 메시지가 출력되면 UART 설정 및 GPIO 핀 연결이 정상입니다.
+
+---
+
+📌 참고
+| 기능         | 사용 GPIO 핀                | 설명                   |
+| ---------- | ------------------------ | -------------------- |
+| **UART**   | GPIO14 (TX), GPIO15 (RX) | `/dev/serial0`로 통신   |
+| **I2C**    | GPIO2 (SDA), GPIO3 (SCL) | I2C 센서용 (기본 I2C1 버스) |
+| **SPI**    | GPIO7\~GPIO11            | SPI 장치 연결용           |
+| **1-Wire** | GPIO4                    | DS18B20 등 온도센서 전용    |
+
+
+> 이 설정은 UART만 변경하며, 다른 GPIO 기능이나 I2C/SPI/1-Wire에는 영향을 주지 않습니다.
+
+---
