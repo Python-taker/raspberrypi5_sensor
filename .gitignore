@@ -8,3 +8,13 @@ __pycache__/
 
 # IDE 설정
 .vscode/
+
+# 테스트 환경
+#sensor_project
+
+#.env
+
+# test 파일 무시
+#src/test.py
+#test_i2c.py
+#uart_test.py
