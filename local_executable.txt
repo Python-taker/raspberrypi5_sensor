@@ -1,0 +1,23 @@
+sudo systemctl enable --now mosquitto
+
+# 유닛 파일 저장 후
+sudo systemctl daemon-reload
+
+# 부팅 시 자동 시작
+sudo systemctl enable sensor.service
+
+# 즉시 재시작
+sudo systemctl restart sensor.service
+
+# 실시간 로그
+journalctl -u sensor.service -f
+
+
+# 환경이 제대로 반영됐는지 확인:
+
+# systemd가 들고 있는 환경 변수 보기
+systemctl show sensor.service -p Environment
+
+# 앱에서 읽은 브로커로 붙는지 로그로 확인
+# 예: "MQTT connect: 192.168.0.216:1883" 같은 라인이 보여야 정상
+journalctl -u sensor.service -f
